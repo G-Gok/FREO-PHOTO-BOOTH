@@ -137,11 +137,10 @@
         #flash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; z-index: 9999; display: none; }
         #countdown { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 150px; font-weight: 800; color: white; z-index: 100; display: none; }
         
-        /* Toast Notification */
         #toast {
             font-family: 'SF Mono', monospace;
             position: fixed; top: 100px; left: 50%; transform: translateX(-50%);
-            background: #65afcc;; color: #000; padding: 12px 24px; border-radius: 12px;
+            background: #65afcc; color: #000; padding: 12px 24px; border-radius: 12px;
             font-weight: 900; font-size: 1.2rem; z-index: 2000; opacity: 0; transition: 0.5s; pointer-events: none;
         }
         #toast.active { opacity: 1; top: 120px; }
@@ -183,7 +182,7 @@
 </head>
 <body>
     <div id="flash"></div>
-    <div id="toast">Special frame unlocked after your photo taking!</div>
+    <div id="toast">Special frame <span id="toast-unlock-word">unlocked</span> after your photo taking!</div>
     <header class="top-bar">
         <img src="FREO LOGO (3).png" class="brand-logo" alt="FREO" crossorigin="anonymous">
 <div class="studio-status">
@@ -399,11 +398,11 @@
             viewport.style.borderRadius = (type === 'polaroid') ? '0' : '24px';
             viewport.style.borderWidth = (type === 'minimal') ? '2px' : (type === 'polaroid' ? '20px 20px 60px 20px' : '2px');
             viewport.style.borderColor = (type === 'polaroid') ? '#fff' : 'var(--glass-border)';
-            if (type === 'mascot') showToast("Special frame unlocked after your photo taking!");
+            if (type === 'mascot') showToast(`Special frame <span id="toast-unlock-word">unlocked</span> after your photo taking!`);
             document.querySelectorAll('#shelf-frames .shelf-item').forEach(i => i.classList.toggle('active', i.innerText.toLowerCase() === type));
         }
 
-        function showToast(msg) { toast.innerText = msg; toast.classList.add('active'); setTimeout(() => toast.classList.remove('active'), 3000); }
+        function showToast(msg) { toast.innerHTML = msg; toast.classList.add('active'); setTimeout(() => toast.classList.remove('active'), 3000); }
         function toggleShelf(id) { document.querySelectorAll('.shelf').forEach(s => s.id === id ? s.classList.toggle('active') : s.classList.remove('active')); }
 
         async function runCapture() {
