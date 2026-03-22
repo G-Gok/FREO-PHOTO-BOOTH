@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FREO | Professional Studio v2.0</title>
+    <title>FREO | PHOTO BOOTH</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -37,7 +37,7 @@
         .studio-status {
             position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
             font-family: 'SF Mono', monospace; font-size: 2.1rem; font-weight: 900;
-            text-transform: uppercase; letter-spacing: -5.45px; gap: 555px; white-space: nowrap;
+            text-transform: uppercase; letter-spacing: -7px; gap: 555px; white-space: nowrap;
         }
         .char-o { color: #FFD700; text-shadow: 0 0 10px rgba(255, 255, 255, 0.8); display: inline; }
 
@@ -112,10 +112,25 @@
         /* Footer */
         .footer-controls-container { display: flex; justify-content: center; width: 100%; }
         .footer-controls { display: flex; align-items: center; justify-content: center; gap: 20px; padding: 10px; }
-        .btn-capture {
-            width: 420px; height: 44px; background: #ffffff; color: #000000;
-            border: 2px solid rgba(0,0,0,0.1); border-radius: 12px; font-family: 'SF Mono', monospace; font-weight: 900; font-size: 1.2rem; cursor: pointer; transition: all 0.3s;
-        }
+.btn-capture {
+    /* 移除固定宽度，改为自适应 */
+    min-width: 180px;
+    height: 44px;
+    background: #ffffff;
+    color: #000000;
+    border: 2px solid rgba(0,0,0,0.1);
+    border-radius: 12px;
+    font-family: 'SF Mono', monospace;
+    font-weight: 900;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    /* 使用 inline-flex 使宽度自适应内容 */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 20px; /* 保持左右内边距 */
+}
         .btn-capture:hover {
             transform: translateY(-3px);
             box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
