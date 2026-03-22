@@ -415,7 +415,7 @@
                 const data = await captureMasterpiece();
                 const div = document.createElement('div');
                 div.style.marginBottom = '20px';
-                div.innerHTML = `<img src="${data}" style="width:100%; border-radius:10px; border:1px solid #333;"><a href="${data}" download="FREO_PHO.jpg" style="display:block; background:#FFEA00; color:#000; text-align:center; padding:12px; text-decoration:none; font-weight:900; border-radius:8px; margin-top:10px;">DOWNLOAD HD</a>`;
+                div.innerHTML = `<img src="${data}" style="width:100%; border-radius:10px; border:1px solid #333;"><a href="${data}" download="FREO_PHO.jpg" style="display:block; background:#FFEA00; color:#000; text-align:center; padding:12px; text-decoration:none; font-weight:900; border-radius:8px; margin-top:10px;">DOWNLOAD</a>`;
                 document.getElementById('gallery-list').prepend(div);
                 toggleGallery(true);
             } catch (e) { alert("Please run via a local server (like Live Server) to allow image export.\nError: " + e.message); }
