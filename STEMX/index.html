@@ -1,5 +1,75 @@
-<!-- 修改前 -->
-<div id="toast">Special frame unlocked after your photo taking!</div>
+async function captureMasterpiece() {
+    const canvas = document.getElementById('process-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // 使用 scaleFactor 控制图像的缩放比例
+    const scaleFactor = 0.7; // 可以动态调整此值
+    const rawW = 1600 * scaleFactor;
+    const rawH = 900 * scaleFactor;
+    
+    const isMascot = (currentFrame === 'mascot');
 
-<!-- 修改后 -->
-<div id="toast">Special frame <span id="toast-unlock-word">unlocked</span> after your photo taking!</div>
+    if (isMascot && frameImages.mascot.complete) {
+        const maskImg = frameImages.mascot;
+        const cfg = mascotFrameConfig;
+
+        canvas.width = maskImg.naturalWidth;
+        canvas.height = maskImg.naturalHeight;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const vW = video.videoWidth;
+        const vH = video.videoHeight;
+
+        const hw = canvas.width * cfg.holeW;
+        const hh = canvas.height * cfg.holeH;
+        const hx = canvas.width * cfg.holeX - hw/2;
+        const hy = canvas.height * cfg.holeY - hh/2;
+
+        const scale = Math.min(hw / vW, hh / vH) * scaleFactor;
+        const dw = vW * scale;
+        const dh = vH * scale;
+        
+        const dx = hx + (hw - dw) / 2 - 70;
+        const dy = hy + (hh - dh) / 2 + 104; // Increased offset to move it further down
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(hx, hy, hw, hh); // 限制绘图区域在镂空范围内
+        ctx.clip();
+        
+        ctx.translate(dx + dw, dy); 
+        ctx.scale(-1, 1);
+        ctx.filter = video.style.filter || 'none';
+        ctx.drawImage(video, 0, 0, vW, vH, 0, 0, dw, dh);
+        
+        // 如果有活动的贴纸，也在此处绘制
+        if (currentMaterial !== 'none' && lastFaceData) {
+            // 计算相对于视频帧的贴纸尺寸和位置
+            const videoScaleX = dw / vW;
+            const videoScaleY = dh / vH;
+            
+            // 根据视频尺寸和缩放比例计算贴纸在视频中的尺寸
+            const stickerW = lastFaceData.adjustedW * videoScaleX;
+            const stickerH = lastFaceData.adjustedH * videoScaleY;
+            
+            // 计算贴纸在视频中的位置
+            const stickerX = (lastFaceData.centerX / arCanvas.width) * dw;
+            const stickerY = (lastFaceData.centerY / arCanvas.height) * dh;
+            
+            // 绘制贴纸 - 直接在裁剪区域内绘制，不需要额外偏移
+            ctx.save();
+            ctx.translate(stickerX + dx, stickerY + dy);
+            ctx.rotate(lastFaceData.rotation);
+            ctx.drawImage(lastFaceData.img, -stickerW/2, -stickerH/2, stickerW, stickerH);
+            ctx.restore();
+        }
+        ctx.restore();
+
+        ctx.drawImage(maskImg, 0, 0, canvas.width, canvas.height);
+        
+        return canvas.toDataURL('image/png');
+    } else {
+        // 其他模式下的处理逻辑...
+    }
+}
