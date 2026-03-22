@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FREO | Professional Studio v2.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <style>
+        :root {
+            --accent: #FFD700;
+            --bg: #000000;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text: #ffffff;
+            --primary: #FFEA00;
+            --transition: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('sea bg.JPG') center/cover no-repeat fixed;
+            color: var(--text);
+            height: 100vh; overflow: hidden; display: flex; flex-direction: column;
+        }
+
+        /* --- Header --- */
+        .top-bar {
+            height: 80px; width: 100%; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 40px; border-bottom: 1px solid var(--glass-border); backdrop-filter: blur(10px); z-index: 1000; position: relative;
+        }
+        .brand-logo { height: 45px; margin-left: -18px; }
+        .studio-status {
+            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+            font-family: 'SF Mono', monospace; font-size: 1.5rem; font-weight: 900;
+            text-transform: uppercase; letter-spacing: 0px; gap: 555px; white-space: nowrap;
+        }
+        .char-o { color: #FFD700; text-shadow: 0 0 10px rgba(255, 255, 255, 0.8); display: inline; }
+
+        /* --- Workspace --- */
+        .workspace { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; gap: 40px; }
+        .side-panel { width: 120px; display: flex; flex-direction: column; align-items: center; gap: 40px; transform: translateY(-45px); }
+        .panel-group { display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; }
+        .panel-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #fff;
+            font-weight: 900;
+            text-align: center;
+            transition: color 0.2s;
+        }
+
+        .panel-label:hover {
+            color: #fff;
+        }
+        .action-btn {
+            width: 70px; height: 70px; background: var(--glass); border: 2px solid var(--glass-border);
+            border-radius: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s; font-size: 24px;
+        }
+        .action-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--primary); }
+
+        /* Camera Stage */
+        .camera-container { flex: 0 1 1000px; position: relative; display: flex; flex-direction: column; gap: 25px; }
+        .camera-viewport {
+            aspect-ratio: 16 / 9;
+            width: 100%;
+            max-width: 1100px;
+            max-height: 70vh;
+            margin: 0 auto;
+            background: #000;
+            border-radius: 24px;
+            overflow: hidden;
+            position: relative;
+            border: 2px solid var(--glass-border);
+            box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        #ar-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; transform: scaleX(-1); }
+
+        /* Shelf UI */
+        .shelf {
+            position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 10px; background: rgba(0,0,0,0.9); padding: 10px 20px; border-radius: 50px; border: 1px solid var(--glass-border);
+            z-index: 100; opacity: 0; pointer-events: none; transition: 0.3s;
+        }
+        .shelf.active { opacity: 1; pointer-events: auto; }
+        .shelf-item {
+            padding: 6px 15px;
+            font-size: 0.65rem;
+            color: #fff;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.3s, color 0.3s;
+        }
+        .shelf-item:hover, .shelf-item:focus {
+            background: #fff;
+            color: #000;
+        }
+        .shelf-item.active {
+            background: var(--primary);
+            color: #000;
+        }
+
+        /* Footer */
+        .footer-controls-container { display: flex; justify-content: center; width: 100%; }
+        .footer-controls { display: flex; align-items: center; justify-content: center; gap: 20px; padding: 10px; }
+        .btn-capture {
+            width: 420px; height: 44px; background: #ffffff; color: #000000;
+            border: 2px solid rgba(0,0,0,0.1); border-radius: 12px; font-family: 'SF Mono', monospace; font-weight: 900; font-size: 1.2rem; cursor: pointer; transition: all 0.3s;
+        }
+        .btn-capture:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        .btn-capture:active {
+            transform: translateY(2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        #gallery { 
+            position: fixed; top: 0; right: 0; width: 400px; height: 100vh;
+            background: rgba(10,10,10,0.98); border-left: 1px solid var(--glass-border);
+            z-index: 2000; transform: translateX(100%); transition: 0.4s var(--transition); padding: 40px; overflow-y: auto;
+        }
+        #gallery.active { transform: translateX(0); }
+        .gallery-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+
+        #flash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; z-index: 9999; display: none; }
+        #countdown { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 150px; font-weight: 800; color: white; z-index: 100; display: none; }
+        
+        /* Toast Notification */
+        #toast {
+            position: fixed; top: 100px; left: 50%; transform: translateX(-50%);
+            background: var(--primary); color: #000; padding: 12px 24px; border-radius: 12px;
+            font-weight: 900; font-size: 0.9rem; z-index: 2000; opacity: 0; transition: 0.5s; pointer-events: none;
+        }
+        #toast.active { opacity: 1; top: 120px; }
+
+        #process-canvas { display: none; }
+        
+        /* 修改visual和wear区域按钮的hover效果为白色边框 */
+        .side-panel .action-btn:hover {
+            border-color: white !important;
+        }
+
+        /* --- 修改 btn-circle-mini 样式为小圆按钮并添加 hover 效果 --- */
+        .btn-circle-mini {
+            width: 40px;
+            height: 40px;
+            background: var(--glass);
+            border: 2px solid var(--glass-border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1.2rem;
+            color: var(--text);
+        }
+        .btn-circle-mini:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: white;
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="flash"></div>
+    <div id="toast">Special frame unlocked after your photo taking!</div>
+    <header class="top-bar">
+        <img src="FREO LOGO (3).png" class="brand-logo" alt="FREO" crossorigin="anonymous">
+<div class="studio-status">
+    <span>F</span>
+    <span>R</span>
+    <span>E</span>
+    <span class="char-o">O</span>
+    &nbsp;
+    <span>P</span>
+    <span>H</span>
+    <span class="char-o">O</span>
+    <span>T</span>
+    <span>O</span>
+    &nbsp;
+    <span>B</span>
+    <span class="char-o">O</span>
+    <span class="char-o">O</span>
+    <span>T</span>
+    <span>H</span>
+</div>
+        </div>
+        <button class="btn-circle-mini" onclick="toggleGallery(true)">📂</button>
+    </header>
+
+    <main class="workspace">
+        <aside class="side-panel">
+            <div class="panel-group">
+                <p class="panel-label">Visual</p>
+                <div class="action-btn" onclick="toggleShelf('shelf-filters')">✨</div>
+                <div class="action-btn" onclick="toggleShelf('shelf-frames')">🖼️</div>
+            </div>
+        </aside>
+
+        <div class="camera-container">
+            <div class="camera-viewport" id="viewport">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="ar-overlay"></canvas>
+                <div id="countdown">3</div>
+            </div>
+
+            <div id="shelf-filters" class="shelf">
+                <div class="shelf-item active" onclick="setFilter('none')">RAW</div>
+                <div class="shelf-item" onclick="setFilter('sunny')">SUNNY</div>
+                <div class="shelf-item" onclick="setFilter('fresh')">FRESH</div>
+                <div class="shelf-item" onclick="setFilter('mono')">MONO</div>
+            </div>
+
+            <div id="shelf-frames" class="shelf">
+                <div class="shelf-item active" onclick="setFrame('minimal')">MINIMAL</div>
+                <div class="shelf-item" onclick="setFrame('polaroid')">POLAROID</div>
+                <div class="shelf-item" onclick="setFrame('mascot')">MASCOT</div>
+            </div>
+
+            <div class="footer-controls-container">
+                <div class="footer-controls">
+                    <button class="btn-circle-mini" onclick="clearEffects()">🧹</button>
+                    <button class="btn-capture" id="snap-btn" onclick="runCapture()">Capture the fresh moment!</button>
+                    <button class="btn-circle-mini" onclick="switchCamera()">🔄</button>
+                </div>
+            </div>
+        </div>
+
+        <aside class="side-panel">
+            <div class="panel-group">
+                <p class="panel-label">wear</p>
+                <div class="action-btn" onclick="setMask('lemon')">🍋</div>
+                <div class="action-btn" onclick="setMask('papaya')">🍈</div>
+                <div class="action-btn" onclick="setMask('banana')">🍌</div>
+            </div>
+        </aside>
+    </main>
+
+    <div id="gallery">
+        <div class="gallery-head">
+            <h3>STUDIO GALLERY</h3>
+            <button class="btn-circle-mini" onclick="toggleGallery(false)">✕</button>
+        </div>
+        <div id="gallery-list"></div>
+    </div>
+
+    <canvas id="process-canvas"></canvas>
+
+    <script>
+        const video = document.getElementById('video');
+        const viewport = document.getElementById('viewport');
+        const arCanvas = document.getElementById('ar-overlay');
+        const arCtx = arCanvas.getContext('2d');
+        const countdownOverlay = document.getElementById('countdown');
+        const flash = document.getElementById('flash');
+        const toast = document.getElementById('toast');
+        
+        let currentMaterial = 'none';
+        let currentFrame = 'minimal';
+        let lastLandmarks = null;
+        let lastFaceData = null;  // 存储用于渲染的数据，以便拍照时使用
+
+        // --- Assets with CORS ---
+        const loadImg = (src) => { const i = new Image(); i.crossOrigin="anonymous"; i.src = src; return i; };
+        const maskImages = {
+            banana: loadImg('stickers/no bg/banana.png'),
+            lemon: loadImg('stickers/no bg/lemon.png'),
+            papaya: loadImg('stickers/no bg/papaya.png')
+        };
+        const maskConfigs = {
+            banana: { holeX: 0.545, holeY: 0.46, holeW: 0.4, holeH: 0.57 },  // 增加宽度，调整高度
+            lemon:  { holeX: 0.517, holeY: 0.5, holeW: 0.42, holeH: 0.65 },  // 保持原有配置
+            papaya: { holeX: 0.5, holeY: 0.46, holeW: 0.35, holeH: 0.62 }   // 保持原有配置
+        };
+        const frameImages = { mascot: loadImg('stickers/no bg/mascot frame logo.png') };
+        const mascotFrameConfig = { holeX: 0.525, holeY: 0.48, holeW: 0.58, holeH: 0.38 };
+
+        let faceMesh, camera;
+
+        async function init() {
+            faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+            faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+            faceMesh.onResults(onResults);
+            camera = new Camera(video, { onFrame: async () => await faceMesh.send({image: video}), width: 1920, height: 1080 });
+            camera.start();
+            video.addEventListener('loadeddata', () => { arCanvas.width = video.videoWidth; arCanvas.height = video.videoHeight; });
+        }
+
+        function onResults(results) {
+            arCtx.clearRect(0, 0, arCanvas.width, arCanvas.height);
+            lastLandmarks = results.multiFaceLandmarks?.length ? results.multiFaceLandmarks[0] : null;
+            if (currentMaterial !== 'none' && lastLandmarks) {
+                const cfg = maskConfigs[currentMaterial];
+                const img = maskImages[currentMaterial];
+                
+                if (img.complete) {
+                    // 获取面部的关键点
+                    const t = lastLandmarks[10];   // 面部顶部（额头）
+                    const c = lastLandmarks[152];  // 面部中心（下巴）
+                    const l = lastLandmarks[234];  // 左脸颊
+                    const r = lastLandmarks[454];  // 右脸颊
+                    
+                    // 计算面部的实际宽高比
+                    const faceWidth = Math.abs(r.x - l.x) * arCanvas.width;
+                    const faceHeight = Math.abs(c.y - t.y) * arCanvas.height;
+                    const faceAspectRatio = faceWidth / faceHeight;
+                    
+                    // 原始贴纸宽高比
+                    const originalAspectRatio = cfg.holeW / cfg.holeH;
+                    
+                    // 根据贴纸类型设置不同的缩放参数
+                    let adjustedW, adjustedH;
+                    
+                    if (currentMaterial === 'banana') {
+                        // 专门为banana贴纸设置的尺寸，您可以调整这两个系数来改变banana贴纸的大小
+                        adjustedW = faceWidth * 5;  // 宽度
+                        adjustedH = faceHeight * 5.6; // 高度
+                    } else {
+                        // 对于其他贴纸（lemon和papaya）保持原有计算方式
+                        adjustedW = faceWidth / cfg.holeW;
+                        adjustedH = faceHeight / cfg.holeH;
+
+                        // 根据实际面部比例调整贴纸的宽高比
+                        if (faceAspectRatio > originalAspectRatio) {
+                            // 面部更宽 -> 按宽度缩放，高度相应调整
+                            adjustedW = faceWidth / cfg.holeW;
+                            adjustedH = adjustedW / (cfg.holeW / cfg.holeH);
+                        } else {
+                            // 面部更高/更窄 -> 按高度缩放，宽度相应调整
+                            adjustedH = faceHeight / cfg.holeH;
+                            adjustedW = adjustedH * (cfg.holeW / cfg.holeH);
+                        }
+                    }
+                    
+                    // 计算贴纸位置
+                    const centerX = ((l.x + r.x)/2 * arCanvas.width) - (cfg.holeX - 0.5) * adjustedW;
+                    const centerY = ((t.y + c.y)/2 * arCanvas.height) - (cfg.holeY - 0.5) * adjustedH;
+                    
+                    // 计算旋转角度（如果面部有倾斜）
+                    const rotation = Math.atan2((r.y - l.y) * arCanvas.height, (r.x - l.x) * arCanvas.width);
+                    
+                    // 保存当前面部数据，供拍照时使用
+                    lastFaceData = {
+                        material: currentMaterial,
+                        centerX: centerX,
+                        centerY: centerY,
+                        adjustedW: adjustedW,
+                        adjustedH: adjustedH,
+                        rotation: rotation,
+                        img: img
+                    };
+                    
+                    // 绘制裁剪贴纸
+                    arCtx.save();
+                    arCtx.translate(centerX, centerY);
+                    arCtx.rotate(rotation);
+                    arCtx.drawImage(img, -adjustedW/2, -adjustedH/2, adjustedW, adjustedH);
+                    arCtx.restore();
+                }
+            }
+        }
+
+        function setMask(type) { currentMaterial = (currentMaterial === type) ? 'none' : type; }
+        function setFilter(type) {
+            const f = { none: '', sunny: 'contrast(1.1) saturate(1.2)', fresh: 'hue-rotate(20deg)', mono: 'grayscale(1)' };
+            video.style.filter = f[type];
+            
+            // 移除所有滤镜项的active类
+            document.querySelectorAll('#shelf-filters .shelf-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // 为当前点击的滤镜项添加active类
+            event.currentTarget.classList.add('active');
+        }
+
+        function setFrame(type) {
+            currentFrame = type;
+            viewport.style.borderRadius = (type === 'polaroid') ? '0' : '24px';
+            viewport.style.borderWidth = (type === 'minimal') ? '2px' : (type === 'polaroid' ? '20px 20px 60px 20px' : '2px');
+            viewport.style.borderColor = (type === 'polaroid') ? '#fff' : 'var(--glass-border)';
+            if (type === 'mascot') showToast("Special frame unlocked after your photo taking!");
+            document.querySelectorAll('#shelf-frames .shelf-item').forEach(i => i.classList.toggle('active', i.innerText.toLowerCase() === type));
+        }
+
+        function showToast(msg) { toast.innerText = msg; toast.classList.add('active'); setTimeout(() => toast.classList.remove('active'), 3000); }
+        function toggleShelf(id) { document.querySelectorAll('.shelf').forEach(s => s.id === id ? s.classList.toggle('active') : s.classList.remove('active')); }
+
+        async function runCapture() {
+            const btn = document.getElementById('snap-btn'); btn.disabled = true;
+            countdownOverlay.style.display = 'block';
+            for(let i=3; i>0; i--) { countdownOverlay.innerText = i; await new Promise(r => setTimeout(r, 1000)); }
+            countdownOverlay.style.display = 'none';
+            flash.style.display = 'block'; setTimeout(() => flash.style.display = 'none', 100);
+            try {
+                const data = await captureMasterpiece();
+                const div = document.createElement('div');
+                div.style.marginBottom = '20px';
+                div.innerHTML = `<img src="${data}" style="width:100%; border-radius:10px; border:1px solid #333;"><a href="${data}" download="FREO_PHO.jpg" style="display:block; background:#FFEA00; color:#000; text-align:center; padding:12px; text-decoration:none; font-weight:900; border-radius:8px; margin-top:10px;">DOWNLOAD HD</a>`;
+                document.getElementById('gallery-list').prepend(div);
+                toggleGallery(true);
+            } catch (e) { alert("Please run via a local server (like Live Server) to allow image export.\nError: " + e.message); }
+            btn.disabled = false;
+        }
+
+        async function captureMasterpiece() {
+            const canvas = document.getElementById('process-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 使用 scaleFactor 控制图像的缩放比例
+            const scaleFactor = 0.7; // 可以动态调整此值
+            const rawW = 1600 * scaleFactor;
+            const rawH = 900 * scaleFactor;
+            
+            const isMascot = (currentFrame === 'mascot');
+
+            if (isMascot && frameImages.mascot.complete) {
+                const maskImg = frameImages.mascot;
+                const cfg = mascotFrameConfig;
+
+                canvas.width = maskImg.naturalWidth;
+                canvas.height = maskImg.naturalHeight;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const vW = video.videoWidth;
+                const vH = video.videoHeight;
+
+                const hw = canvas.width * cfg.holeW;
+                const hh = canvas.height * cfg.holeH;
+                const hx = canvas.width * cfg.holeX - hw/2;
+                const hy = canvas.height * cfg.holeY - hh/2;
+
+                const scale = Math.min(hw / vW, hh / vH) * scaleFactor;
+                const dw = vW * scale;
+                const dh = vH * scale;
+                
+                const dx = hx + (hw - dw) / 2 - 70;
+                const dy = hy + (hh - dh) / 2 + 104; // Increased offset to move it further down
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(hx, hy, hw, hh); // 限制绘图区域在镂空范围内
+                ctx.clip();
+                
+                ctx.translate(dx + dw, dy); 
+                ctx.scale(-1, 1);
+                ctx.filter = video.style.filter || 'none';
+                ctx.drawImage(video, 0, 0, vW, vH, 0, 0, dw, dh);
+                
+                // 如果有活动的贴纸，也在此处绘制
+                if (currentMaterial !== 'none' && lastFaceData) {
+                    // 计算相对于视频帧的贴纸尺寸和位置
+                    const videoScaleX = dw / vW;
+                    const videoScaleY = dh / vH;
+                    
+                    // 根据视频尺寸和缩放比例计算贴纸在视频中的尺寸
+                    const stickerW = lastFaceData.adjustedW * videoScaleX;
+                    const stickerH = lastFaceData.adjustedH * videoScaleY;
+                    
+                    // 计算贴纸在视频中的位置
+                    const stickerX = (lastFaceData.centerX / arCanvas.width) * dw;
+                    const stickerY = (lastFaceData.centerY / arCanvas.height) * dh;
+                    
+                    // 绘制贴纸 - 直接在裁剪区域内绘制，不需要额外偏移
+                    ctx.save();
+                    ctx.translate(stickerX + dx, stickerY + dy);
+                    ctx.rotate(lastFaceData.rotation);
+                    ctx.drawImage(lastFaceData.img, -stickerW/2, -stickerH/2, stickerW, stickerH);
+                    ctx.restore();
+                }
+                ctx.restore();
+
+                ctx.drawImage(maskImg, 0, 0, canvas.width, canvas.height);
+                
+                return canvas.toDataURL('image/png');
+            } else {
+                const margin = (currentFrame === 'polaroid' ? 40 : 0);
+                const bMargin = (currentFrame === 'polaroid' ? 80 : 0);
+                canvas.width = rawW + margin*2; canvas.height = rawH + margin + bMargin;
+
+                ctx.fillStyle = (currentFrame === 'polaroid') ? '#fff' : '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.filter = video.style.filter || 'none';
+                ctx.save(); ctx.translate(margin + rawW, margin); ctx.scale(-1, 1);
+                ctx.drawImage(video, 0, 0, rawW, rawH); ctx.filter = 'none'; 
+                
+                // 如果有活动的贴纸，也在此处绘制
+                if (currentMaterial !== 'none' && lastFaceData) {
+                    // 计算相对于视频帧的贴纸尺寸和位置
+                    const videoScaleX = rawW / video.videoWidth;
+                    const videoScaleY = rawH / video.videoHeight;
+                    
+                    // 根据视频尺寸和缩放比例计算贴纸在视频中的尺寸
+                    const stickerW = lastFaceData.adjustedW * videoScaleX;
+                    const stickerH = lastFaceData.adjustedH * videoScaleY;
+                    
+                    // 计算贴纸在视频中的位置
+                    const stickerX = (lastFaceData.centerX / arCanvas.width) * rawW;
+                    const stickerY = (lastFaceData.centerY / arCanvas.height) * rawH;
+                    
+                    // 绘制贴纸
+                    ctx.save();
+                    ctx.translate(stickerX + margin + rawW, stickerY + margin);
+                    ctx.rotate(lastFaceData.rotation);
+                    ctx.drawImage(lastFaceData.img, -stickerW/2, -stickerH/2, stickerW, stickerH);
+                    ctx.restore();
+                }
+                
+                ctx.drawImage(arCanvas, 0, 0, rawW, rawH); ctx.restore();
+                
+                if (currentFrame === 'polaroid') {
+                    const logo = document.querySelector('.brand-logo');
+                    if (logo.complete) {
+                        const lw = 120;
+                        const lh = (logo.naturalHeight/logo.naturalWidth)*lw;
+                        ctx.drawImage(logo, (canvas.width-lw)/2, canvas.height - 40 - (lh/2), lw, lh);
+                    }
+                }
+                return canvas.toDataURL('image/jpeg', 0.95);
+            }
+        }
+
+        function toggleGallery(show) { document.getElementById('gallery').classList.toggle('active', show); }
+        function clearEffects() { currentMaterial = 'none'; video.style.filter = ''; setFrame('minimal'); }
+        function switchCamera() { alert("Environment context."); }
+
+        init();
+    </script>
+</body>
+</html>
+</html>

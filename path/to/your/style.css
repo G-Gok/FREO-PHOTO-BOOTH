@@ -1,0 +1,4 @@
+/* 修改 hover 状态下边框颜色为白色 */
+.box:hover {
+    border-color: white !important;
+}

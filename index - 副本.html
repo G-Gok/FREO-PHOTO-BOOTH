@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FREO | Professional Studio v2.0</title>
+    <style>
+        :root {
+            --primary: #2E8B57;
+            --accent: #FFD700;
+            --bg: #000000;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.3); /* 显著边框色 */
+            --text: #ffffff;
+            --transition: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg);
+            background-image: radial-gradient(circle at 50% 50%, #0d1a10 0%, #000000 100%);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Header: 严格保持原始位置 --- */
+        .top-bar {
+            height: 80px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            border-bottom: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+
+        .brand-logo { 
+            height: 45px; 
+            margin-left: -18px; /* 严格保留您的原始 margin */
+        }
+
+        .studio-status {
+            font-family: 'SF Mono', 'Roboto Mono', 'Source Code Pro', 'Menlo', monospace;
+            font-size: 0.85rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-shadow: 0 0 10px rgba(46,139,87,0.3);
+        }
+
+        .status-dot { width: 8px; height: 8px; background: var(--primary); border-radius: 50%; box-shadow: 0 0 10px var(--primary); animation: blink 2s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* --- Workspace --- */
+        .workspace {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            gap: 40px;
+        }
+
+        /* Side Panels */
+        .side-panel {
+            width: 100px;
+            display: flex;
+            flex-direction: column;
+            gap: 50px; /* 显著加大组间距 */
+            align-items: center;
+        }
+
+        .panel-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* 确保组内所有元素居中 */
+            gap: 12px;
+            width: 100%;
+        }
+
+        .panel-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--primary);
+            font-weight: 900;
+            opacity: 1;
+            text-align: center; /* 标签文字居中 */
+            width: 100%;
+        }
+
+        .action-btn {
+            width: 70px;
+            height: 70px;
+            background: var(--glass);
+            border: 2px solid var(--glass-border); /* 加厚边框，突出边缘 */
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 24px;
+        }
+
+        .action-btn:hover { background: rgba(255,255,255,0.1); transform: scale(1.05); border-color: var(--primary); }
+        .action-btn img { max-width: 60%; max-height: 60%; }
+
+        /* Camera Stage */
+        .camera-container {
+            flex: 1;
+            max-width: 900px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .camera-viewport {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            border-radius: 24px;
+            overflow: hidden;
+            position: relative;
+            border: 2px solid var(--glass-border); /* 显著边框 */
+            box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+        }
+
+        #video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+
+        /* --- Footer --- */
+        .footer-controls-container {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .footer-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 10px 15px;
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 2px solid var(--glass-border); /* 显著边框 */
+        }
+
+        .btn-capture {
+            width: 420px;
+            background: var(--primary); color: white;
+            border: 2px solid rgba(255,255,255,0.1);
+            padding: 16px; border-radius: 12px; font-weight: 800;
+            font-size: 0.95rem; letter-spacing: 1px; cursor: pointer; transition: 0.3s;
+        }
+        .btn-capture:hover { background: #3eb875; box-shadow: 0 10px 30px rgba(46,139,87,0.4); }
+
+        .btn-tool { 
+            width: 55px; height: 55px; border-radius: 14px; 
+            background: rgba(255,255,255,0.05); 
+            border: 2px solid var(--glass-border); /* 显著边框 */
+            color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; 
+        }
+
+        /* 投票按钮定位至右下角 */
+        .vote-link { 
+            position: fixed;
+            bottom: 30px;
+            right: 40px;
+            background: var(--accent); 
+            color: #000; 
+            padding: 14px 28px; 
+            border-radius: 12px; 
+            font-weight: 900; 
+            text-decoration: none; 
+            font-size: 0.8rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 1100;
+            text-transform: uppercase;
+            border: 2px solid rgba(0,0,0,0.1);
+        }
+
+        /* Stickers & Materials */
+        .sticker-instance { position: absolute; z-index: 10; cursor: move; touch-action: none; transition: transform 0.2s; }
+        .sticker-instance img { width: 100%; height: 100%; pointer-events: none; }
+        .sticker-instance.selected { outline: 1px solid var(--primary); outline-offset: 10px; }
+
+        .mat-holographic { filter: contrast(1.2) brightness(1.1); }
+        .mat-holographic::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%);
+            background-size: 200% 200%; animation: holo 3s linear infinite; mix-blend-mode: overlay;
+        }
+        @keyframes holo { 0% { background-position: -200% -200%; } 100% { background-position: 200% 200%; } }
+        .mat-crystal { filter: brightness(1.4) contrast(1.1) opacity(0.9); mix-blend-mode: screen; }
+
+        #gallery { position: fixed; top: 0; right: -420px; width: 400px; height: 100vh; background: #0a0a0a; border-left: 1px solid var(--glass-border); z-index: 2000; transition: 0.4s var(--transition); padding: 40px; overflow-y: auto; }
+        #gallery.active { right: 0; }
+        .gallery-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .btn-close { background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; }
+        .photo-card { background: rgba(255,255,255,0.03); padding: 15px; border-radius: 16px; margin-bottom: 30px; border: 1px solid var(--glass-border); }
+        .photo-card img { width: 100%; border-radius: 8px; margin-bottom: 15px; }
+        .btn-save { display: block; width: 100%; padding: 12px; background: var(--primary); color: white; text-align: center; text-decoration: none; font-weight: bold; border-radius: 8px; }
+
+        #flash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; z-index: 9999; display: none; }
+        #process-canvas { display: none; }
+        #countdown { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 150px; font-weight: 800; color: white; z-index: 100; display: none; text-shadow: 0 0 50px rgba(0,0,0,0.5); }
+        .shelf {
+            position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 10px; background: rgba(0,0,0,0.9);
+            padding: 10px 20px; border-radius: 50px; border: 1px solid var(--glass-border);
+            z-index: 100; opacity: 0; pointer-events: none; transition: 0.3s;
+        }
+        .shelf.active { opacity: 1; pointer-events: auto; }
+        .shelf-item { padding: 6px 15px; font-size: 0.65rem; color: #fff; border-radius: 20px; cursor: pointer; }
+        .shelf-item.active { background: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <div id="flash"></div>
+
+    <header class="top-bar">
+        <img src="FREO LOGO (3).png" class="brand-logo" alt="FREO">
+        
+        <div class="studio-status">
+            <span class="status-dot"></span>
+            FREO PHOTO BOOTH
+        </div>
+
+        <button class="btn-tool" onclick="toggleGallery(true)">📂</button>
+    </header>
+
+    <main class="workspace">
+        <aside class="side-panel">
+            <div class="panel-group">
+                <p class="panel-label">Visual</p>
+                <div class="action-btn" onclick="toggleShelf('shelf-filters')">✨</div>
+                <div class="action-btn" onclick="toggleShelf('shelf-frames')">🖼️</div>
+            </div>
+            <div class="panel-group">
+                <p class="panel-label">Material</p>
+                <div class="action-btn" onclick="setMaterial('holographic')">💿</div>
+                <div class="action-btn" onclick="setMaterial('crystal')">💎</div>
+            </div>
+        </aside>
+
+        <div class="camera-container">
+            <div class="camera-viewport" id="viewport">
+                <video id="video" autoplay playsinline></video>
+                <div id="countdown">3</div>
+                <div id="sticker-container"></div>
+            </div>
+
+            <div id="shelf-filters" class="shelf">
+                <div class="shelf-item active" onclick="setFilter('none')">RAW</div>
+                <div class="shelf-item" onclick="setFilter('sunny')">SUNNY</div>
+                <div class="shelf-item" onclick="setFilter('fresh')">FRESH</div>
+                <div class="shelf-item" onclick="setFilter('mono')">MONO</div>
+            </div>
+
+            <div id="shelf-frames" class="shelf">
+                <div class="shelf-item active" onclick="setFrame('none')">MINIMAL</div>
+                <div class="shelf-item" onclick="setFrame('polaroid')">POLAROID</div>
+                <div class="shelf-item" onclick="setFrame('studio')">STUDIO</div>
+            </div>
+
+            <div class="footer-controls-container">
+                <div class="footer-controls">
+                    <button class="btn-tool" onclick="clearStickers()">🧹</button>
+                    <button class="btn-capture" id="snap-btn" onclick="runCapture()">Let's capture the fresh moment!</button>
+                    <button class="btn-tool" onclick="switchCamera()">🔄</button>
+                </div>
+            </div>
+        </div>
+
+        <aside class="side-panel">
+            <div class="panel-group">
+                <p class="panel-label">GEAR</p>
+                <div class="action-btn" onclick="addSticker('https://img.icons8.com/color/96/lemon--v1.png', 90)">
+                    <img src="https://img.icons8.com/color/96/lemon--v1.png">
+                </div>
+                <div class="action-btn" onclick="addSticker('https://img.icons8.com/color/96/banana.png', 90)">
+                    <img src="https://img.icons8.com/color/96/banana.png">
+                </div>
+                <div class="action-btn" onclick="addSticker('https://img.icons8.com/color/96/graduation-cap.png', 140)">
+                    <img src="https://img.icons8.com/color/96/graduation-cap.png">
+                </div>
+                <div class="action-btn" onclick="addSticker('https://img.icons8.com/color/96/crown.png', 120)">
+                    <img src="https://img.icons8.com/color/96/crown.png">
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <a href="#" class="vote-link">VOTE FREO 🗳️</a>
+
+    <div id="gallery">
+        <div class="gallery-head">
+            <h3>STUDIO GALLERY</h3>
+            <button class="btn-close" onclick="toggleGallery(false)">✕</button>
+        </div>
+        <div id="gallery-list"></div>
+    </div>
+
+    <canvas id="process-canvas"></canvas>
+
+    <script>
+        const video = document.getElementById('video');
+        const viewport = document.getElementById('viewport');
+        const stickerContainer = document.getElementById('sticker-container');
+        const countdownOverlay = document.getElementById('countdown');
+        const flash = document.getElementById('flash');
+        
+        let stickers = [];
+        let activeSticker = null;
+        let currentMaterial = 'none';
+
+        async function init() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user', width: 1920, height: 1080 } 
+                });
+                video.srcObject = stream;
+            } catch (err) { console.error(err); }
+        }
+
+        function addSticker(src, size) {
+            const id = 's-' + Date.now();
+            const div = document.createElement('div');
+            div.className = `sticker-instance mat-${currentMaterial}`;
+            div.id = id;
+            div.style.width = size + 'px';
+            div.style.height = size + 'px';
+            div.style.left = '45%'; div.style.top = '40%';
+            
+            const img = document.createElement('img');
+            img.src = src;
+            div.appendChild(img);
+            stickerContainer.appendChild(div);
+            
+            const obj = { id, el: div, x: 0, y: 0, rotation: 0 };
+            stickers.push(obj);
+            
+            setupDrag(obj);
+            selectSticker(obj);
+        }
+
+        function setupDrag(obj) {
+            let dragging = false;
+            let sx, sy;
+            obj.el.addEventListener('touchstart', (e) => {
+                dragging = true; selectSticker(obj);
+                sx = e.touches[0].clientX - obj.x;
+                sy = e.touches[0].clientY - obj.y;
+                e.preventDefault();
+            });
+            window.addEventListener('touchmove', (e) => {
+                if (!dragging) return;
+                obj.x = e.touches[0].clientX - sx;
+                obj.y = e.touches[0].clientY - sy;
+                obj.el.style.transform = `translate(${obj.x}px, ${obj.y}px) rotate(${obj.rotation}deg)`;
+            });
+            window.addEventListener('touchend', () => dragging = false);
+        }
+
+        function selectSticker(obj) {
+            if (activeSticker) activeSticker.el.classList.remove('selected');
+            activeSticker = obj;
+            activeSticker.el.classList.add('selected');
+        }
+
+        function setMaterial(type) {
+            currentMaterial = type;
+            if (activeSticker) activeSticker.el.className = `sticker-instance mat-${type} selected`;
+        }
+
+        function setFilter(type) {
+            const f = {
+                none: '',
+                sunny: 'contrast(1.1) saturate(1.3) sepia(0.1)',
+                fresh: 'hue-rotate(30deg) brightness(1.1)',
+                mono: 'grayscale(1) contrast(1.2)'
+            };
+            video.style.filter = f[type];
+        }
+
+        function setFrame(type) {
+            viewport.style.borderWidth = (type === 'none') ? '2px' : '40px';
+        }
+
+        function toggleShelf(id) {
+            document.querySelectorAll('.shelf').forEach(s => {
+                if (s.id !== id) s.classList.remove('active');
+            });
+            document.getElementById(id).classList.toggle('active');
+        }
+
+        async function runCapture() {
+            const btn = document.getElementById('snap-btn');
+            btn.disabled = true;
+            countdownOverlay.style.display = 'block';
+            for (let i = 3; i > 0; i--) {
+                countdownOverlay.innerText = i;
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            countdownOverlay.style.display = 'none';
+            flash.style.display = 'block';
+            setTimeout(() => flash.style.display = 'none', 100);
+            const data = await captureMasterpiece();
+            savePhoto(data);
+            btn.disabled = false;
+            toggleGallery(true);
+        }
+
+        async function captureMasterpiece() {
+            const canvas = document.getElementById('process-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 1920; canvas.height = 1080;
+            ctx.filter = video.style.filter || 'none';
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, -1920, 0, 1920, 1080);
+            ctx.restore();
+            const rect = viewport.getBoundingClientRect();
+            const scale = 1920 / rect.width;
+            stickers.forEach(s => {
+                const sRect = s.el.getBoundingClientRect();
+                const img = s.el.querySelector('img');
+                const x = (sRect.left - rect.left + sRect.width/2) * scale;
+                const y = (sRect.top - rect.top + sRect.height/2) * scale;
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(s.rotation * Math.PI / 180);
+                ctx.drawImage(img, -sRect.width*scale/2, -sRect.height*scale/2, sRect.width*scale, sRect.height*scale);
+                ctx.restore();
+            });
+            return canvas.toDataURL('image/jpeg', 0.95);
+        }
+
+        function savePhoto(data) {
+            const div = document.createElement('div');
+            div.className = 'photo-card';
+            div.innerHTML = `<img src="${data}"><a href="${data}" download="FREO_MASTERPIECE.jpg" class="btn-save">DOWNLOAD HD</a>`;
+            document.getElementById('gallery-list').prepend(div);
+        }
+
+        function toggleGallery(show) { document.getElementById('gallery').classList.toggle('active', show); }
+        function clearStickers() { stickers.forEach(s => s.el.remove()); stickers = []; }
+        function switchCamera() { console.log("Switching..."); }
+
+        init();
+    </script>
+</body>
+</html>
