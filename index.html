@@ -429,12 +429,64 @@
             try {
                 const data = await captureMasterpiece();
                 const div = document.createElement('div');
+                div.className = 'gallery-item';
                 div.style.marginBottom = '20px';
-                div.innerHTML = `<img src="${data}" style="width:100%; border-radius:10px; border:1px solid #333;"><a href="${data}" download="FREO_PHO.jpg" style="display:block; background:#FFEA00; color:#000; text-align:center; padding:12px; text-decoration:none; font-weight:900; border-radius:8px; margin-top:10px;">DOWNLOAD</a>`;
+                
+                const timestamp = new Date().getTime();
+                // 动态判断后缀名，确保手机系统识别正确
+                const isPng = data.startsWith('data:image/png');
+                const fileName = `FREO_${timestamp}.${isPng ? 'png' : 'jpg'}`;
+                
+                div.innerHTML = `
+                    <img src="${data}" style="width:100%; border-radius:10px; border:1px solid #333;">
+                    <button id="dl-${timestamp}" style="width:100%; border:none; display:block; background:#FFEA00; color:#000; text-align:center; padding:12px; text-decoration:none; font-weight:900; border-radius:8px; margin-top:10px; cursor:pointer; font-family: 'SF Mono', monospace;">DOWNLOAD</button>
+                `;
                 document.getElementById('gallery-list').prepend(div);
+                
+                // 使用事件监听器代替 onclick 属性，避免长字符串溢出问题
+                document.getElementById(`dl-${timestamp}`).addEventListener('click', () => {
+                    handleDownload(data, fileName);
+                });
+
                 toggleGallery(true);
             } catch (e) { alert("Please run via a local server (like Live Server) to allow image export.\nError: " + e.message); }
             btn.disabled = false;
+        }
+
+        function handleDownload(dataUrl, filename) {
+            try {
+                // 针对移动端的最优解：Blob + ObjectURL
+                const parts = dataUrl.split(';base64,');
+                const contentType = parts[0].split(':')[1];
+                const raw = window.atob(parts[1]);
+                const rawLength = raw.length;
+                const uInt8Array = new Uint8Array(rawLength);
+                for (let i = 0; i < rawLength; ++i) {
+                    uInt8Array[i] = raw.charCodeAt(i);
+                }
+                const blob = new Blob([uInt8Array], { type: contentType });
+                const blobUrl = window.URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = filename;
+                
+                // 必须加入 DOM 树以触发 iOS 的下载机制
+                document.body.appendChild(link);
+                link.click();
+                
+                // 稍作延迟再移除，给 iOS 留出响应时间
+                setTimeout(() => {
+                    if (document.body.contains(link)) document.body.removeChild(link);
+                    window.URL.revokeObjectURL(blobUrl);
+                }, 500);
+            } catch (err) {
+                console.error("Download failed:", err);
+                // 极致保底：在新窗口打开原图
+                const w = window.open();
+                w.document.write(`<img src="${dataUrl}" style="width:100%;">`);
+                w.document.title = "Save Photo";
+            }
         }
 
         async function captureMasterpiece() {
@@ -477,10 +529,15 @@
                 ctx.rect(hx, hy, hw, hh); // 限制绘图区域在镂空范围内
                 ctx.clip();
                 
+                // 关键修复：先设置滤镜，再执行绘图操作
+                ctx.filter = video.style.filter || 'none';
+                
                 ctx.translate(dx + dw, dy); 
                 ctx.scale(-1, 1);
-                ctx.filter = video.style.filter || 'none';
                 ctx.drawImage(video, 0, 0, vW, vH, 0, 0, dw, dh);
+                
+                // 绘制完视频后重置滤镜，以免影响后续贴纸
+                ctx.filter = 'none';
                 
                 // 如果有活动的贴纸，也在此处绘制
                 if (currentMaterial !== 'none' && lastFaceData) {
