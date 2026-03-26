@@ -112,24 +112,79 @@
         /* Footer */
         .footer-controls-container { display: flex; justify-content: center; width: 100%; }
         .footer-controls { display: flex; align-items: center; justify-content: center; gap: 20px; padding: 10px; }
+/* 按钮基础样式：改为透明背景 */
 .btn-capture {
     min-width: 180px;
-    height: 44px;
-    background: var(--glass);
+    height: 48px;
+    background: transparent; /* 改为透明 */
     color: #ffffff;
-    border: 2px solid var(--glass-border);
+    border: 1px solid var(--glass-border);
     backdrop-filter: blur(10px);
     border-radius: 12px;
     font-family: 'SF Mono', monospace;
     font-weight: 900;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     cursor: pointer;
     transition: all 0.3s;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0 20px;
+    padding: 0 25px;
+    position: relative;
+    overflow: visible;
+    z-index: 1;
 }
+
+
+/* SVG 容器：覆盖整个按钮 */
+.btn-glow-svg {
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    width: calc(100% + 2px);
+    height: calc(100% + 2px);
+    fill: none;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* 描边矩形：实现“发光射线”效果 */
+.btn-glow-rect {
+    stroke: #ffffff;
+    stroke-width: 2px;
+    stroke-dasharray: 15 85; /* 射线长度约占总周长的15% */
+    stroke-linecap: round; /* 两端圆润，消除生楞感 */
+    
+    /* 核心光效：多重阴影营造射线发光感 */
+    filter: 
+        drop-shadow(0 0 2px #fff) 
+        drop-shadow(0 0 5px rgba(255, 255, 255, 0.8))
+        drop-shadow(0 0 10px rgba(255, 255, 255, 0.4));
+        
+    animation: flow-ccw 3s linear infinite;
+}
+
+/* 逆时针流动动画：通过增加 offset 实现向上/向左移动 */
+@keyframes flow-ccw {
+    from { stroke-dashoffset: 0; }
+    to { stroke-dashoffset: 100; }
+}
+
+/* 暂停逻辑：原地冻结 */
+.btn-capture.paused .btn-glow-rect {
+    animation-play-state: paused;
+}
+
+.btn-capture:hover {
+    background: #111;
+    border-color: #fff;
+    transform: translateY(-3px);
+}
+
+.btn-capture:hover::after {
+    background: #111;
+}
+
 .btn-capture:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: white;
@@ -267,7 +322,12 @@
             <div class="footer-controls-container">
                 <div class="footer-controls">
                     <button class="btn-circle-mini" onclick="clearEffects()">🧹</button>
-                    <button class="btn-capture" id="snap-btn" onclick="runCapture()">CAPTURE THE FRESH MOMENT</button>
+                    <button class="btn-capture" id="snap-btn" onclick="runCapture()">
+                        <svg class="btn-glow-svg">
+                            <rect class="btn-glow-rect" x="0" y="0" width="100%" height="100%" rx="12" ry="12" pathLength="100"></rect>
+                        </svg>
+                        CAPTURE THE FRESH MOMENT
+                    </button>
                     <button class="btn-circle-mini" onclick="switchCamera()">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="#666"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                     </button>
@@ -305,10 +365,10 @@
         const flash = document.getElementById('flash');
         const toast = document.getElementById('toast');
         
-        let currentMaterial = 'none';
+        let faceStickers = {}; // Map face index to sticker type
+        let selectedFaceIndex = null;
+        let multiFaceData = []; // Store rendered data for all faces
         let currentFrame = 'minimal';
-        let lastLandmarks = null;
-        let lastFaceData = null;  // 存储用于渲染的数据，以便拍照时使用
 
         // --- Assets with CORS ---
         const loadImg = (src) => { const i = new Image(); i.crossOrigin="anonymous"; i.src = src; return i; };
@@ -318,9 +378,9 @@
             papaya: loadImg('stickers/no bg/papaya.png')
         };
         const maskConfigs = {
-            banana: { holeX: 0.545, holeY: 0.46, holeW: 0.4, holeH: 0.57 },  // 增加宽度，调整高度
-            lemon:  { holeX: 0.517, holeY: 0.5, holeW: 0.42, holeH: 0.65 },  // 保持原有配置
-            papaya: { holeX: 0.5, holeY: 0.46, holeW: 0.35, holeH: 0.62 }   // 保持原有配置
+            banana: { holeX: 0.545, holeY: 0.46, holeW: 0.4, holeH: 0.57 },
+            lemon:  { holeX: 0.517, holeY: 0.5, holeW: 0.42, holeH: 0.65 },
+            papaya: { holeX: 0.5, holeY: 0.46, holeW: 0.35, holeH: 0.62 }
         };
         const frameImages = { mascot: loadImg('stickers/no bg/mascot frame logo.png') };
         const mascotFrameConfig = { holeX: 0.525, holeY: 0.48, holeW: 0.58, holeH: 0.38 };
@@ -329,88 +389,143 @@
 
         async function init() {
             faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
-            faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+            faceMesh.setOptions({ 
+                maxNumFaces: 10, // 支持多达 10 人同时拍照
+                refineLandmarks: true, 
+                minDetectionConfidence: 0.5, 
+                minTrackingConfidence: 0.5 
+            });
             faceMesh.onResults(onResults);
             camera = new Camera(video, { onFrame: async () => await faceMesh.send({image: video}), width: 1920, height: 1080 });
             camera.start();
-            video.addEventListener('loadeddata', () => { arCanvas.width = video.videoWidth; arCanvas.height = video.videoHeight; });
+            video.addEventListener('loadeddata', () => { 
+                arCanvas.width = video.videoWidth; 
+                arCanvas.height = video.videoHeight;
+                arCanvas.style.pointerEvents = 'auto'; // 允许点击画布
+                arCanvas.addEventListener('click', handleCanvasClick);
+            });
+        }
+
+        function handleCanvasClick(e) {
+            const rect = arCanvas.getBoundingClientRect();
+            // 计算点击的归一化坐标 (0-1)
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+            
+            let clickedIndex = -1;
+            multiFaceData.forEach((face, index) => {
+                const landmarks = face.landmarks;
+                if (!landmarks) return;
+                
+                // 获取人脸边界框
+                let minX = 1, maxX = 0, minY = 1, maxY = 0;
+                landmarks.forEach(p => {
+                    if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+                    if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+                });
+                
+                // 由于视频是镜像的，我们需要处理 X 坐标
+                const actualX = 1 - x; 
+                
+                // 判断点击是否在人脸范围内（增加一点余量）
+                const padding = 0.05;
+                if (actualX >= (minX - padding) && actualX <= (maxX + padding) && 
+                    y >= (minY - padding) && y <= (maxY + padding)) {
+                    clickedIndex = index;
+                }
+            });
+
+            if (clickedIndex !== -1) {
+                selectedFaceIndex = clickedIndex;
+                showToast(`Target selected! Now pick a sticker.`);
+            }
         }
 
         function onResults(results) {
             arCtx.clearRect(0, 0, arCanvas.width, arCanvas.height);
-            lastLandmarks = results.multiFaceLandmarks?.length ? results.multiFaceLandmarks[0] : null;
-            if (currentMaterial !== 'none' && lastLandmarks) {
-                const cfg = maskConfigs[currentMaterial];
-                const img = maskImages[currentMaterial];
-                
-                if (img.complete) {
-                    // 获取面部的关键点
-                    const t = lastLandmarks[10];   // 面部顶部（额头）
-                    const c = lastLandmarks[152];  // 面部中心（下巴）
-                    const l = lastLandmarks[234];  // 左脸颊
-                    const r = lastLandmarks[454];  // 右脸颊
+            const faces = results.multiFaceLandmarks || [];
+            
+            // 如果只有一个人，自动选中
+            if (faces.length === 1) selectedFaceIndex = 0;
+            else if (faces.length === 0) selectedFaceIndex = null;
+
+            const newFaceData = [];
+
+            faces.forEach((landmarks, index) => {
+                const type = faceStickers[index] || 'none';
+                let faceInfo = { landmarks, type };
+
+                if (type !== 'none' && maskImages[type].complete) {
+                    const cfg = maskConfigs[type];
+                    const img = maskImages[type];
+                    const t = landmarks[10], c = landmarks[152], l = landmarks[234], r = landmarks[454];
                     
-                    // 计算面部的实际宽高比
                     const faceWidth = Math.abs(r.x - l.x) * arCanvas.width;
                     const faceHeight = Math.abs(c.y - t.y) * arCanvas.height;
                     const faceAspectRatio = faceWidth / faceHeight;
-                    
-                    // 原始贴纸宽高比
                     const originalAspectRatio = cfg.holeW / cfg.holeH;
                     
-                    // 根据贴纸类型设置不同的缩放参数
                     let adjustedW, adjustedH;
-                    
-                    if (currentMaterial === 'banana') {
-                        // 专门为banana贴纸设置的尺寸，您可以调整这两个系数来改变banana贴纸的大小
-                        adjustedW = faceWidth * 5;  // 宽度
-                        adjustedH = faceHeight * 5.6; // 高度
+                    if (type === 'banana') {
+                        adjustedW = faceWidth * 5; adjustedH = faceHeight * 5.6;
                     } else {
-                        // 对于其他贴纸（lemon和papaya）保持原有计算方式
-                        adjustedW = faceWidth / cfg.holeW;
-                        adjustedH = faceHeight / cfg.holeH;
-
-                        // 根据实际面部比例调整贴纸的宽高比
                         if (faceAspectRatio > originalAspectRatio) {
-                            // 面部更宽 -> 按宽度缩放，高度相应调整
                             adjustedW = faceWidth / cfg.holeW;
                             adjustedH = adjustedW / (cfg.holeW / cfg.holeH);
                         } else {
-                            // 面部更高/更窄 -> 按高度缩放，宽度相应调整
                             adjustedH = faceHeight / cfg.holeH;
                             adjustedW = adjustedH * (cfg.holeW / cfg.holeH);
                         }
                     }
                     
-                    // 计算贴纸位置
                     const centerX = ((l.x + r.x)/2 * arCanvas.width) - (cfg.holeX - 0.5) * adjustedW;
                     const centerY = ((t.y + c.y)/2 * arCanvas.height) - (cfg.holeY - 0.5) * adjustedH;
-                    
-                    // 计算旋转角度（如果面部有倾斜）
                     const rotation = Math.atan2((r.y - l.y) * arCanvas.height, (r.x - l.x) * arCanvas.width);
                     
-                    // 保存当前面部数据，供拍照时使用
-                    lastFaceData = {
-                        material: currentMaterial,
-                        centerX: centerX,
-                        centerY: centerY,
-                        adjustedW: adjustedW,
-                        adjustedH: adjustedH,
-                        rotation: rotation,
-                        img: img
-                    };
-                    
-                    // 绘制裁剪贴纸
+                    faceInfo = { ...faceInfo, centerX, centerY, adjustedW, adjustedH, rotation, img };
+
                     arCtx.save();
                     arCtx.translate(centerX, centerY);
                     arCtx.rotate(rotation);
                     arCtx.drawImage(img, -adjustedW/2, -adjustedH/2, adjustedW, adjustedH);
                     arCtx.restore();
                 }
-            }
+
+                // 多人模式下，显示选中状态（白色光圈，缩小一半）
+                if (faces.length > 1 && index === selectedFaceIndex) {
+                    const nose = landmarks[1];
+                    arCtx.save();
+                    arCtx.beginPath();
+                    arCtx.arc(nose.x * arCanvas.width, nose.y * arCanvas.height, 25, 0, Math.PI*2); // 半径从50缩小到25
+                    arCtx.strokeStyle = '#ffffff'; // 颜色改为白色
+                    arCtx.lineWidth = 4;
+                    arCtx.setLineDash([8, 4]);
+                    arCtx.stroke();
+                    arCtx.restore();
+                }
+                newFaceData.push(faceInfo);
+            });
+            multiFaceData = newFaceData;
         }
 
-        function setMask(type) { currentMaterial = (currentMaterial === type) ? 'none' : type; }
+        function setMask(type) { 
+            if (multiFaceData.length === 0) {
+                showToast("No person detected!");
+                return;
+            }
+            if (multiFaceData.length === 1) {
+                // 单人模式：直接切换
+                faceStickers[0] = (faceStickers[0] === type) ? 'none' : type;
+            } else {
+                // 多人模式：应用到选中的人
+                if (selectedFaceIndex !== null && selectedFaceIndex < multiFaceData.length) {
+                    faceStickers[selectedFaceIndex] = (faceStickers[selectedFaceIndex] === type) ? 'none' : type;
+                    // 此处删除了 selectedFaceIndex = null; 以便保持选中状态
+                } else {
+                    showToast("Please tap on a person first!");
+                }
+            }
+        }
         function setFilter(type) {
             const f = { none: '', sunny: 'contrast(1.1) saturate(1.2)', fresh: 'hue-rotate(20deg)', mono: 'grayscale(1)' };
             video.style.filter = f[type];
@@ -421,7 +536,9 @@
             });
             
             // 为当前点击的滤镜项添加active类
-            event.currentTarget.classList.add('active');
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            }
         }
 
         function setFrame(type) {
@@ -437,11 +554,15 @@
         function toggleShelf(id) { document.querySelectorAll('.shelf').forEach(s => s.id === id ? s.classList.toggle('active') : s.classList.remove('active')); }
 
         async function runCapture() {
-            const btn = document.getElementById('snap-btn'); btn.disabled = true;
+            const btn = document.getElementById('snap-btn'); 
+            btn.disabled = true;
+            btn.classList.add('paused'); // 倒计时开始，立刻停止流光动画并隐藏流光
+
             countdownOverlay.style.display = 'block';
             for(let i=3; i>0; i--) { countdownOverlay.innerText = i; await new Promise(r => setTimeout(r, 1000)); }
             countdownOverlay.style.display = 'none';
             flash.style.display = 'block'; setTimeout(() => flash.style.display = 'none', 100);
+            
             try {
                 const data = await captureMasterpiece();
                 const div = document.createElement('div');
@@ -449,7 +570,6 @@
                 div.style.marginBottom = '20px';
                 
                 const timestamp = new Date().getTime();
-                // 动态判断后缀名，确保手机系统识别正确
                 const isPng = data.startsWith('data:image/png');
                 const fileName = `FREO_${timestamp}.${isPng ? 'png' : 'jpg'}`;
                 
@@ -459,14 +579,17 @@
                 `;
                 document.getElementById('gallery-list').prepend(div);
                 
-                // 使用事件监听器代替 onclick 属性，避免长字符串溢出问题
                 document.getElementById(`dl-${timestamp}`).addEventListener('click', () => {
                     handleDownload(data, fileName);
                 });
 
                 toggleGallery(true);
-            } catch (e) { alert("Please run via a local server (like Live Server) to allow image export.\nError: " + e.message); }
+            } catch (e) { 
+                alert("Please run via a local server (like Live Server) to allow image export.\nError: " + e.message); 
+            }
+            
             btn.disabled = false;
+            btn.classList.remove('paused'); // 拍完并处理后，恢复流光动画
         }
 
         function handleDownload(dataUrl, filename) {
@@ -509,11 +632,9 @@
             const canvas = document.getElementById('process-canvas');
             const ctx = canvas.getContext('2d');
             
-            // 使用 scaleFactor 控制图像的缩放比例
-            const scaleFactor = 0.7; // 可以动态调整此值
+            const scaleFactor = 0.7; 
             const rawW = 1600 * scaleFactor;
             const rawH = 900 * scaleFactor;
-            
             const isMascot = (currentFrame === 'mascot');
 
             if (isMascot && frameImages.mascot.complete) {
@@ -522,12 +643,10 @@
 
                 canvas.width = maskImg.naturalWidth;
                 canvas.height = maskImg.naturalHeight;
-                
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 const vW = video.videoWidth;
                 const vH = video.videoHeight;
-
                 const hw = canvas.width * cfg.holeW;
                 const hh = canvas.height * cfg.holeH;
                 const hx = canvas.width * cfg.holeX - hw/2;
@@ -536,50 +655,39 @@
                 const scale = Math.min(hw / vW, hh / vH) * scaleFactor;
                 const dw = vW * scale;
                 const dh = vH * scale;
-                
-                const dx = hx + (hw - dw) / 2 - 70;
-                const dy = hy + (hh - dh) / 2 + 95; // Increased offset to move it further down
+                const dx = hx + (hw - dw) / 2 - 65;
+                const dy = hy + (hh - dh) / 2 + 95;
 
                 ctx.save();
                 ctx.beginPath();
-                ctx.rect(hx, hy, hw, hh); // 限制绘图区域在镂空范围内
+                ctx.rect(hx, hy, hw, hh);
                 ctx.clip();
                 
-                // 关键修复：先设置滤镜，再执行绘图操作
                 ctx.filter = video.style.filter || 'none';
-                
                 ctx.translate(dx + dw, dy); 
                 ctx.scale(-1, 1);
                 ctx.drawImage(video, 0, 0, vW, vH, 0, 0, dw, dh);
-                
-                // 绘制完视频后重置滤镜，以免影响后续贴纸
                 ctx.filter = 'none';
                 
-                // 如果有活动的贴纸，也在此处绘制
-                if (currentMaterial !== 'none' && lastFaceData) {
-                    // 计算相对于视频帧的贴纸尺寸和位置
-                    const videoScaleX = dw / vW;
-                    const videoScaleY = dh / vH;
-                    
-                    // 根据视频尺寸和缩放比例计算贴纸在视频中的尺寸
-                    const stickerW = lastFaceData.adjustedW * videoScaleX;
-                    const stickerH = lastFaceData.adjustedH * videoScaleY;
-                    
-                    // 计算贴纸在视频中的位置
-                    const stickerX = (lastFaceData.centerX / arCanvas.width) * dw;
-                    const stickerY = (lastFaceData.centerY / arCanvas.height) * dh;
-                    
-                    // 绘制贴纸 - 直接在裁剪区域内绘制，不需要额外偏移
-                    ctx.save();
-                    ctx.translate(stickerX + dx, stickerY + dy);
-                    ctx.rotate(lastFaceData.rotation);
-                    ctx.drawImage(lastFaceData.img, -stickerW/2, -stickerH/2, stickerW, stickerH);
-                    ctx.restore();
-                }
+                // 渲染所有人脸贴纸
+                multiFaceData.forEach(face => {
+                    if (face.type !== 'none' && face.img) {
+                        const videoScaleX = dw / vW;
+                        const videoScaleY = dh / vH;
+                        const stickerW = face.adjustedW * videoScaleX;
+                        const stickerH = face.adjustedH * videoScaleY;
+                        const stickerX = (face.centerX / arCanvas.width) * dw;
+                        const stickerY = (face.centerY / arCanvas.height) * dh;
+                        
+                        ctx.save();
+                        ctx.translate(stickerX + dx, stickerY + dy);
+                        ctx.rotate(face.rotation);
+                        ctx.drawImage(face.img, -stickerW/2, -stickerH/2, stickerW, stickerH);
+                        ctx.restore();
+                    }
+                });
                 ctx.restore();
-
                 ctx.drawImage(maskImg, 0, 0, canvas.width, canvas.height);
-                
                 return canvas.toDataURL('image/png');
             } else {
                 const margin = (currentFrame === 'polaroid' ? 40 : 0);
@@ -589,33 +697,32 @@
                 ctx.fillStyle = (currentFrame === 'polaroid') ? '#fff' : '#000';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+                ctx.save(); 
+                ctx.translate(margin + rawW, margin); 
+                ctx.scale(-1, 1);
+                
                 ctx.filter = video.style.filter || 'none';
-                ctx.save(); ctx.translate(margin + rawW, margin); ctx.scale(-1, 1);
-                ctx.drawImage(video, 0, 0, rawW, rawH); ctx.filter = 'none'; 
+                ctx.drawImage(video, 0, 0, rawW, rawH); 
+                ctx.filter = 'none'; 
                 
-                // 如果有活动的贴纸，也在此处绘制
-                if (currentMaterial !== 'none' && lastFaceData) {
-                    // 计算相对于视频帧的贴纸尺寸和位置
-                    const videoScaleX = rawW / video.videoWidth;
-                    const videoScaleY = rawH / video.videoHeight;
-                    
-                    // 根据视频尺寸和缩放比例计算贴纸在视频中的尺寸
-                    const stickerW = lastFaceData.adjustedW * videoScaleX;
-                    const stickerH = lastFaceData.adjustedH * videoScaleY;
-                    
-                    // 计算贴纸在视频中的位置
-                    const stickerX = (lastFaceData.centerX / arCanvas.width) * rawW;
-                    const stickerY = (lastFaceData.centerY / arCanvas.height) * rawH;
-                    
-                    // 绘制贴纸
-                    ctx.save();
-                    ctx.translate(stickerX + margin + rawW, stickerY + margin);
-                    ctx.rotate(lastFaceData.rotation);
-                    ctx.drawImage(lastFaceData.img, -stickerW/2, -stickerH/2, stickerW, stickerH);
-                    ctx.restore();
-                }
-                
-                ctx.drawImage(arCanvas, 0, 0, rawW, rawH); ctx.restore();
+                // 渲染所有人脸贴纸
+                multiFaceData.forEach(face => {
+                    if (face.type !== 'none' && face.img) {
+                        const videoScaleX = rawW / video.videoWidth;
+                        const videoScaleY = rawH / video.videoHeight;
+                        const stickerW = face.adjustedW * videoScaleX;
+                        const stickerH = face.adjustedH * videoScaleY;
+                        const stickerX = (face.centerX / arCanvas.width) * rawW;
+                        const stickerY = (face.centerY / arCanvas.height) * rawH;
+                        
+                        ctx.save();
+                        ctx.translate(stickerX, stickerY);
+                        ctx.rotate(face.rotation);
+                        ctx.drawImage(face.img, -stickerW/2, -stickerH/2, stickerW, stickerH);
+                        ctx.restore();
+                    }
+                });
+                ctx.restore();
                 
                 if (currentFrame === 'polaroid') {
                     const logo = document.querySelector('.brand-logo');
@@ -630,7 +737,12 @@
         }
 
         function toggleGallery(show) { document.getElementById('gallery').classList.toggle('active', show); }
-        function clearEffects() { currentMaterial = 'none'; video.style.filter = ''; setFrame('minimal'); }
+        function clearEffects() { 
+            faceStickers = {}; 
+            selectedFaceIndex = null;
+            video.style.filter = ''; 
+            setFrame('minimal'); 
+        }
         function switchCamera() {
             const vt = document.getElementById('vote-toast');
             vt.classList.add('active');
