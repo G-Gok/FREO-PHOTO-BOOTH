@@ -639,12 +639,18 @@
             const rawH = 900 * scaleFactor;
             const isMascot = (currentFrame === 'mascot');
 
-            // 离屏画布辅助：解决移动端 drawImage(video) 时 ctx.filter 失效的问题
+            // --- 核心修复：极致兼容移动端的离屏“烘焙”滤镜策略 ---
             const offCanvas = document.createElement('canvas');
             const offCtx = offCanvas.getContext('2d');
             offCanvas.width = video.videoWidth;
             offCanvas.height = video.videoHeight;
+            
+            // 在绘制视频帧到离屏画布时就应用滤镜，这是 iOS 支持最好的环节
+            if (currentFilterValue && currentFilterValue !== 'none') {
+                offCtx.filter = currentFilterValue;
+            }
             offCtx.drawImage(video, 0, 0);
+            offCtx.filter = 'none'; // 绘制完立即复位
 
             if (isMascot && frameImages.mascot.complete) {
                 const maskImg = frameImages.mascot;
@@ -672,12 +678,10 @@
                 ctx.rect(hx, hy, hw, hh);
                 ctx.clip();
                 
-                // 应用滤镜到离屏画布的渲染上
-                ctx.filter = currentFilterValue;
+                // 此时 offCanvas 已经带有滤镜，直接进行镜像和绘制
                 ctx.translate(dx + dw, dy); 
                 ctx.scale(-1, 1);
                 ctx.drawImage(offCanvas, 0, 0, vW, vH, 0, 0, dw, dh);
-                ctx.filter = 'none';
                 
                 // 渲染所有人脸贴纸
                 multiFaceData.forEach(face => {
@@ -711,10 +715,8 @@
                 ctx.translate(margin + rawW, margin); 
                 ctx.scale(-1, 1);
                 
-                // 应用滤镜到离屏画布的渲染上
-                ctx.filter = currentFilterValue;
+                // 此时 offCanvas 已经带有滤镜，直接绘制到主画布
                 ctx.drawImage(offCanvas, 0, 0, video.videoWidth, video.videoHeight, 0, 0, rawW, rawH); 
-                ctx.filter = 'none'; 
                 
                 // 渲染所有人脸贴纸
                 multiFaceData.forEach(face => {
