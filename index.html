@@ -230,8 +230,97 @@
             font-family: 'SF Mono', monospace;
         }
     </style>
+</head>
+<body>
+    <div id="flash"></div>
+    <div id="toast">Special frame <span id="toast-unlock-word">unlocked</span> after your photo taking!</div>
+    <header class="top-bar">
+        <img src="FREO LOGO (3).png" class="brand-logo" alt="FREO" crossorigin="anonymous">
+<div class="studio-status">
+    <span>F</span>
+    <span>R</span>
+    <span>E</span>
+    <span class="char-o">O</span>
+    &nbsp;
+    <span>P</span>
+    <span>H</span>
+    <span class="char-o">O</span>
+    <span>T</span>
+    <span>O</span>
+    &nbsp;
+    <span>B</span>
+    <span class="char-o">O</span>
+    <span class="char-o">O</span>
+    <span>T</span>
+    <span>H</span>
+</div>
+        <button class="btn-circle-mini" onclick="toggleGallery(true)">📂</button>
+    </header>
 
-    <canvas id="process-canvas"></canvas>
+    <main class="workspace">
+        <aside class="side-panel">
+            <div class="panel-group">
+                <p class="panel-label">Visual</p>
+                <div class="action-btn" onclick="toggleShelf('shelf-filters')">✨</div>
+                <div class="action-btn" onclick="toggleShelf('shelf-frames')">🖼️</div>
+            </div>
+        </aside>
+
+        <div class="camera-container">
+            <div class="camera-viewport" id="viewport">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="ar-overlay"></canvas>
+                <div id="countdown">3</div>
+            </div>
+
+            <div id="shelf-filters" class="shelf">
+                <div class="shelf-item active" onclick="setFilter('none')">RAW</div>
+                <div class="shelf-item" onclick="setFilter('sunny')">SUNNY</div>
+                <div class="shelf-item" onclick="setFilter('fresh')">FRESH</div>
+                <div class="shelf-item" onclick="setFilter('mono')">MONO</div>
+            </div>
+
+            <div id="shelf-frames" class="shelf">
+                <div class="shelf-item active" onclick="setFrame('minimal')">MINIMAL</div>
+                <div class="shelf-item" onclick="setFrame('polaroid')">POLAROID</div>
+                <div class="shelf-item" onclick="setFrame('mascot')">MASCOT</div>
+            </div>
+
+            <div class="footer-controls-container">
+                <div class="footer-controls">
+                    <button class="btn-circle-mini" onclick="clearEffects()">🧹</button>
+                    <button class="btn-capture" id="snap-btn" onclick="runCapture()">
+                        <svg class="btn-glow-svg">
+                            <rect class="btn-glow-rect" x="0" y="0" width="100%" height="100%" rx="12" ry="12" pathLength="100"></rect>
+                        </svg>
+                        CAPTURE THE FRESH MOMENT
+                    </button>
+                    <button class="btn-circle-mini" onclick="switchCamera()">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="#666"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <aside class="side-panel">
+            <div class="panel-group">
+                <p class="panel-label">wear</p>
+                <div class="action-btn" onclick="setMask('lemon')">🍋</div>
+                <div class="action-btn" onclick="setMask('papaya')">🍈</div>
+                <div class="action-btn" onclick="setMask('banana')">🍌</div>
+            </div>
+        </aside>
+    </main>
+
+    <div id="gallery">
+        <div class="gallery-head">
+            <h3>STUDIO GALLERY</h3>
+            <button class="btn-circle-mini" onclick="toggleGallery(false)">✕</button>
+        </div>
+        <div id="gallery-list"></div>
+    </div>
+
+    <canvas id="process-canvas" style="display:none"></canvas>
     <!-- 终极兼容性：SVG 滤镜定义 -->
     <svg style="display:none">
         <defs>
@@ -695,5 +784,4 @@
         init();
     </script>
 </body>
-</html>
 </html>
