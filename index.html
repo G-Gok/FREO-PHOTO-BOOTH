@@ -231,129 +231,28 @@
 } 
 
 
-        #process-canvas { display: none; }
-        
-        /* 修改visual和wear区域按钮的hover效果为白色边框 */
-        .side-panel .action-btn:hover {
-            border-color: white !important;
-        }
-
-        /* --- 修改 btn-circle-mini 样式为小圆按钮并添加 hover 效果 --- */
-        .btn-circle-mini {
-            width: 40px;
-            height: 40px;
-            background: var(--glass);
-            border: 2px solid var(--glass-border);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 1.2rem;
-            color: var(--text);
-        }
-        .btn-circle-mini:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: white;
-            transform: scale(1.1);
-        }
-        .btn-circle-mini:hover svg {
-            fill: #000 !important;
-        }
-    </style>
-</head>
-<body>
-    <div id="flash"></div>
-    <div id="toast">Special frame <span id="toast-unlock-word">unlocked</span> after your photo taking!</div>
-    <header class="top-bar">
-        <img src="FREO LOGO (3).png" class="brand-logo" alt="FREO" crossorigin="anonymous">
-<div class="studio-status">
-    <span>F</span>
-    <span>R</span>
-    <span>E</span>
-    <span class="char-o">O</span>
-    &nbsp;
-    <span>P</span>
-    <span>H</span>
-    <span class="char-o">O</span>
-    <span>T</span>
-    <span>O</span>
-    &nbsp;
-    <span>B</span>
-    <span class="char-o">O</span>
-    <span class="char-o">O</span>
-    <span>T</span>
-    <span>H</span>
-</div>
-        </div>
-        <button class="btn-circle-mini" onclick="toggleGallery(true)">📂</button>
-    </header>
-
-    <main class="workspace">
-        <aside class="side-panel">
-            <div class="panel-group">
-                <p class="panel-label">Visual</p>
-                <div class="action-btn" onclick="toggleShelf('shelf-filters')">✨</div>
-                <div class="action-btn" onclick="toggleShelf('shelf-frames')">🖼️</div>
-            </div>
-        </aside>
-
-        <div class="camera-container">
-            <div class="camera-viewport" id="viewport">
-                <video id="video" autoplay playsinline></video>
-                <canvas id="ar-overlay"></canvas>
-                <div id="countdown">3</div>
-            </div>
-
-            <div id="shelf-filters" class="shelf">
-                <div class="shelf-item active" onclick="setFilter('none')">RAW</div>
-                <div class="shelf-item" onclick="setFilter('sunny')">SUNNY</div>
-                <div class="shelf-item" onclick="setFilter('fresh')">FRESH</div>
-                <div class="shelf-item" onclick="setFilter('mono')">MONO</div>
-            </div>
-
-            <div id="shelf-frames" class="shelf">
-                <div class="shelf-item active" onclick="setFrame('minimal')">MINIMAL</div>
-                <div class="shelf-item" onclick="setFrame('polaroid')">POLAROID</div>
-                <div class="shelf-item" onclick="setFrame('mascot')">MASCOT</div>
-            </div>
-
-            <div class="footer-controls-container">
-                <div class="footer-controls">
-                    <button class="btn-circle-mini" onclick="clearEffects()">🧹</button>
-                    <button class="btn-capture" id="snap-btn" onclick="runCapture()">
-                        <svg class="btn-glow-svg">
-                            <rect class="btn-glow-rect" x="0" y="0" width="100%" height="100%" rx="12" ry="12" pathLength="100"></rect>
-                        </svg>
-                        CAPTURE THE FRESH MOMENT
-                    </button>
-                    <button class="btn-circle-mini" onclick="switchCamera()">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="#666"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <aside class="side-panel">
-            <div class="panel-group">
-                <p class="panel-label">wear</p>
-                <div class="action-btn" onclick="setMask('lemon')">🍋</div>
-                <div class="action-btn" onclick="setMask('papaya')">🍈</div>
-                <div class="action-btn" onclick="setMask('banana')">🍌</div>
-            </div>
-        </aside>
-    </main>
-
-    <div id="gallery">
-        <div class="gallery-head">
-            <h3>STUDIO GALLERY</h3>
-            <button class="btn-circle-mini" onclick="toggleGallery(false)">✕</button>
-        </div>
-        <div id="gallery-list"></div>
-    </div>
-
     <canvas id="process-canvas"></canvas>
+    <!-- 终极兼容性：SVG 滤镜定义 -->
+    <svg style="display:none">
+        <defs>
+            <filter id="svg-sunny">
+                <feComponentTransfer>
+                    <feFuncR type="linear" slope="1.1" />
+                    <feFuncG type="linear" slope="1.1" />
+                    <feFuncB type="linear" slope="1.1" />
+                </feComponentTransfer>
+                <feColorMatrix type="saturate" values="1.2" />
+            </filter>
+            <filter id="svg-fresh">
+                <feColorMatrix type="hueRotate" values="20" />
+            </filter>
+            <filter id="svg-mono">
+                <feColorMatrix type="matrix" values="0.33 0.33 0.33 0 0 0.33 0.33 0.33 0 0 0.33 0.33 0.33 0 0 0 0 0 1 0" />
+            </filter>
+        </defs>
+    </svg>
+    <!-- 终极兼容性：驻留在 DOM 中的滤镜处理画布 -->
+    <canvas id="filter-canvas" style="display:none"></canvas>
     <div id="vote-toast">Don't forget to vote for FREO~~</div>
 
     <script>
@@ -364,12 +263,14 @@
         const countdownOverlay = document.getElementById('countdown');
         const flash = document.getElementById('flash');
         const toast = document.getElementById('toast');
+        const filterCanvas = document.getElementById('filter-canvas');
         
         let faceStickers = {}; // Map face index to sticker type
         let selectedFaceIndex = null;
         let multiFaceData = []; // Store rendered data for all faces
         let currentFrame = 'minimal';
         let currentFilterValue = 'none';
+        let currentFilterId = 'none';
 
         // --- Assets with CORS ---
         const loadImg = (src) => { const i = new Image(); i.crossOrigin="anonymous"; i.src = src; return i; };
@@ -404,6 +305,10 @@
                 arCanvas.height = video.videoHeight;
                 arCanvas.style.pointerEvents = 'auto'; // 允许点击画布
                 arCanvas.addEventListener('click', handleCanvasClick);
+                
+                // 初始化滤镜画布大小
+                filterCanvas.width = video.videoWidth;
+                filterCanvas.height = video.videoHeight;
             });
         }
 
@@ -528,8 +433,20 @@
             }
         }
         function setFilter(type) {
-            const f = { none: 'none', sunny: 'contrast(1.1) saturate(1.2)', fresh: 'hue-rotate(20deg)', mono: 'grayscale(1)' };
+            const f = { 
+                none: 'none', 
+                sunny: 'contrast(1.1) saturate(1.2)', 
+                fresh: 'hue-rotate(20deg)', 
+                mono: 'grayscale(1)' 
+            };
+            const s = {
+                none: 'none',
+                sunny: 'url(#svg-sunny)',
+                fresh: 'url(#svg-fresh)',
+                mono: 'url(#svg-mono)'
+            };
             currentFilterValue = f[type];
+            currentFilterId = s[type];
             video.style.filter = currentFilterValue === 'none' ? '' : currentFilterValue;
             
             // 移除所有滤镜项的active类
@@ -639,29 +556,27 @@
             const rawH = 900 * scaleFactor;
             const isMascot = (currentFrame === 'mascot');
 
-            // --- 核心修复：分层渲染策略 ---
+            // --- 核心修复：SVG 滤镜分层渲染策略 ---
             
-            // 步骤 1: 截取原始视频帧 (无滤镜，纯像素)
-            const rawCanvas = document.createElement('canvas');
-            rawCanvas.width = video.videoWidth;
-            rawCanvas.height = video.videoHeight;
-            rawCanvas.getContext('2d').drawImage(video, 0, 0);
+            // 步骤 1: 确保滤镜画布大小正确
+            filterCanvas.width = video.videoWidth;
+            filterCanvas.height = video.videoHeight;
+            const fCtx = filterCanvas.getContext('2d');
             
-            // 步骤 2: 独立滤镜处理 (在没有任何变换和裁剪的情况下应用滤镜)
-            const filteredCanvas = document.createElement('canvas');
-            filteredCanvas.width = video.videoWidth;
-            filteredCanvas.height = video.videoHeight;
-            const fCtx = filteredCanvas.getContext('2d');
-            
-            // 移动端对 Canvas 滤镜的唯一稳健支持点：在无变换的离屏画布上 drawImage
-            if (currentFilterValue && currentFilterValue !== 'none') {
-                fCtx.filter = currentFilterValue;
+            // 步骤 2: 渲染带滤镜的视频帧
+            // 在 iPad 上，SVG url(#id) 比 grayscale() 字符串稳健得多
+            fCtx.clearRect(0, 0, filterCanvas.width, filterCanvas.height);
+            if (currentFilterId !== 'none') {
+                fCtx.filter = currentFilterId;
             }
-            fCtx.drawImage(rawCanvas, 0, 0);
+            fCtx.drawImage(video, 0, 0);
             fCtx.filter = 'none'; // 立即恢复
 
-            // 步骤 3: 此时 filteredCanvas 已经固化了滤镜效果，将其作为后续绘制的源
-            const frameSource = filteredCanvas;
+            // 步骤 3: 强制 Flush (读取像素点迫使 WebKit 提交滤镜计算)
+            fCtx.getImageData(0, 0, 1, 1);
+
+            // 此时 filterCanvas 已经固化了滤镜效果
+            const frameSource = filterCanvas;
 
             if (isMascot && frameImages.mascot.complete) {
                 const maskImg = frameImages.mascot;
@@ -687,7 +602,7 @@
                 ctx.save();
                 ctx.beginPath();
                 ctx.rect(hx, hy, hw, hh);
-                ctx.clip(); // 这里的裁剪不会再影响已经固化在 frameSource 里的滤镜了
+                ctx.clip(); 
                 
                 ctx.translate(dx + dw, dy); 
                 ctx.scale(-1, 1);
