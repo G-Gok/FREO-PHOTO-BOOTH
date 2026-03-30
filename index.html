@@ -639,18 +639,20 @@
             const rawH = 900 * scaleFactor;
             const isMascot = (currentFrame === 'mascot');
 
-            // --- 核心修复：极致兼容移动端的离屏“烘焙”滤镜策略 ---
-            const offCanvas = document.createElement('canvas');
-            const offCtx = offCanvas.getContext('2d');
-            offCanvas.width = video.videoWidth;
-            offCanvas.height = video.videoHeight;
+            // --- 极致兼容性修复：视频帧静态化策略 ---
+            // 1. 先将视频当前帧截取为无滤镜的 Canvas
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = video.videoWidth;
+            tempCanvas.height = video.videoHeight;
+            tempCanvas.getContext('2d').drawImage(video, 0, 0);
             
-            // 在绘制视频帧到离屏画布时就应用滤镜，这是 iOS 支持最好的环节
-            if (currentFilterValue && currentFilterValue !== 'none') {
-                offCtx.filter = currentFilterValue;
-            }
-            offCtx.drawImage(video, 0, 0);
-            offCtx.filter = 'none'; // 绘制完立即复位
+            // 2. 将 Canvas 转换为静态 Image 对象（这是移动端滤镜生效的关键）
+            const imgData = tempCanvas.toDataURL('image/jpeg', 0.9);
+            const frameImg = await new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.src = imgData;
+            });
 
             if (isMascot && frameImages.mascot.complete) {
                 const maskImg = frameImages.mascot;
@@ -678,10 +680,12 @@
                 ctx.rect(hx, hy, hw, hh);
                 ctx.clip();
                 
-                // 此时 offCanvas 已经带有滤镜，直接进行镜像和绘制
+                // 应用滤镜到静态图片上
+                ctx.filter = currentFilterValue === 'none' ? 'none' : currentFilterValue;
                 ctx.translate(dx + dw, dy); 
                 ctx.scale(-1, 1);
-                ctx.drawImage(offCanvas, 0, 0, vW, vH, 0, 0, dw, dh);
+                ctx.drawImage(frameImg, 0, 0, vW, vH, 0, 0, dw, dh);
+                ctx.filter = 'none';
                 
                 // 渲染所有人脸贴纸
                 multiFaceData.forEach(face => {
@@ -715,8 +719,10 @@
                 ctx.translate(margin + rawW, margin); 
                 ctx.scale(-1, 1);
                 
-                // 此时 offCanvas 已经带有滤镜，直接绘制到主画布
-                ctx.drawImage(offCanvas, 0, 0, video.videoWidth, video.videoHeight, 0, 0, rawW, rawH); 
+                // 应用滤镜到静态图片上
+                ctx.filter = currentFilterValue === 'none' ? 'none' : currentFilterValue;
+                ctx.drawImage(frameImg, 0, 0, video.videoWidth, video.videoHeight, 0, 0, rawW, rawH); 
+                ctx.filter = 'none';
                 
                 // 渲染所有人脸贴纸
                 multiFaceData.forEach(face => {
