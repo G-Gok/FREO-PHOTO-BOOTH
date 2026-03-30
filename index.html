@@ -369,6 +369,7 @@
         let selectedFaceIndex = null;
         let multiFaceData = []; // Store rendered data for all faces
         let currentFrame = 'minimal';
+        let currentFilterValue = 'none';
 
         // --- Assets with CORS ---
         const loadImg = (src) => { const i = new Image(); i.crossOrigin="anonymous"; i.src = src; return i; };
@@ -527,8 +528,9 @@
             }
         }
         function setFilter(type) {
-            const f = { none: '', sunny: 'contrast(1.1) saturate(1.2)', fresh: 'hue-rotate(20deg)', mono: 'grayscale(1)' };
-            video.style.filter = f[type];
+            const f = { none: 'none', sunny: 'contrast(1.1) saturate(1.2)', fresh: 'hue-rotate(20deg)', mono: 'grayscale(1)' };
+            currentFilterValue = f[type];
+            video.style.filter = currentFilterValue === 'none' ? '' : currentFilterValue;
             
             // 移除所有滤镜项的active类
             document.querySelectorAll('#shelf-filters .shelf-item').forEach(item => {
@@ -637,6 +639,13 @@
             const rawH = 900 * scaleFactor;
             const isMascot = (currentFrame === 'mascot');
 
+            // 离屏画布辅助：解决移动端 drawImage(video) 时 ctx.filter 失效的问题
+            const offCanvas = document.createElement('canvas');
+            const offCtx = offCanvas.getContext('2d');
+            offCanvas.width = video.videoWidth;
+            offCanvas.height = video.videoHeight;
+            offCtx.drawImage(video, 0, 0);
+
             if (isMascot && frameImages.mascot.complete) {
                 const maskImg = frameImages.mascot;
                 const cfg = mascotFrameConfig;
@@ -663,10 +672,11 @@
                 ctx.rect(hx, hy, hw, hh);
                 ctx.clip();
                 
-                ctx.filter = video.style.filter || 'none';
+                // 应用滤镜到离屏画布的渲染上
+                ctx.filter = currentFilterValue;
                 ctx.translate(dx + dw, dy); 
                 ctx.scale(-1, 1);
-                ctx.drawImage(video, 0, 0, vW, vH, 0, 0, dw, dh);
+                ctx.drawImage(offCanvas, 0, 0, vW, vH, 0, 0, dw, dh);
                 ctx.filter = 'none';
                 
                 // 渲染所有人脸贴纸
@@ -701,8 +711,9 @@
                 ctx.translate(margin + rawW, margin); 
                 ctx.scale(-1, 1);
                 
-                ctx.filter = video.style.filter || 'none';
-                ctx.drawImage(video, 0, 0, rawW, rawH); 
+                // 应用滤镜到离屏画布的渲染上
+                ctx.filter = currentFilterValue;
+                ctx.drawImage(offCanvas, 0, 0, video.videoWidth, video.videoHeight, 0, 0, rawW, rawH); 
                 ctx.filter = 'none'; 
                 
                 // 渲染所有人脸贴纸
@@ -740,7 +751,12 @@
         function clearEffects() { 
             faceStickers = {}; 
             selectedFaceIndex = null;
+            currentFilterValue = 'none';
             video.style.filter = ''; 
+            // 重置滤镜按钮状态
+            document.querySelectorAll('#shelf-filters .shelf-item').forEach(item => {
+                item.classList.toggle('active', item.innerText === 'RAW');
+            });
             setFrame('minimal'); 
         }
         function switchCamera() {
